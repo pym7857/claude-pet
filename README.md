@@ -16,6 +16,10 @@ The pet is rendered as a 32×32 pixel-art face inside a rounded 160×160 frame a
 
 The macOS menu-bar tray icon **mirrors the pet's mood**, so you can still tell Claude needs you even when the pet window is hidden, dragged off-screen, or covered by another window.
 
+Here's how it looks in the real menu bar (top-right corner of the screen, next to the clock and Control Center icons):
+
+![menu bar tray](docs/menu-bar.png)
+
 | Idle | Waiting for you |
 |:-:|:-:|
 | ![tray normal](docs/face-normal.png) | ![tray alert](docs/face-red.png) |
@@ -214,7 +218,8 @@ claude-pet/
     ├── face-normal.png         # used in this README
     ├── face-surprised.png
     ├── face-red.png            # tray alert variant, used in README
-    └── finder-icon.png         # /Applications/ Finder screenshot, used in README
+    ├── finder-icon.png         # /Applications/ Finder screenshot, used in README
+    └── menu-bar.png            # macOS top menu bar screenshot, used in README
 ```
 
 ## npm scripts
