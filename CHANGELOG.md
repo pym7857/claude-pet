@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Tray icon polling sped up from 1 s → 250 ms** (`TRAY_POLL_MS` in `main.js`). The renderer face was already snapping back within `pollIntervalMs` (default 500 ms), but the tray reflected `tool-post` clears up to a full second late, which felt sluggish when answering YES on a fast tool. CPU overhead is negligible — `state.json` is a few hundred bytes.
 - **Unified `config.json` location across dev mode and the packaged `.app`.** Previously `lib/paths.js` resolved `USER_DATA_DIR` to the source folder in dev mode and to `~/Library/Application Support/claude-pet` only when packaged, which meant the source `config.json` (used by `npm start` + every hook) and the `.app` `config.json` (used by the packaged pet) could drift out of sync — projects added in one place wouldn't be respected in the other. `USER_DATA_DIR` is now hard-coded to `~/Library/Application Support/claude-pet` for every mode. One file, one edit. The source `config.json` is now unused (already `.gitignore`d, safe to delete).
 
 ### Fixed

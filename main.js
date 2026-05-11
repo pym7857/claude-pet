@@ -5,7 +5,7 @@ const { CONFIG_FILE, CONFIG_EXAMPLE, USER_DATA_DIR, STATE_FILE, STATE_DIR } = re
 const pkg = require('./package.json');
 
 const TRAY_SIZE = 22;
-const TRAY_POLL_MS = 1000;
+const TRAY_POLL_MS = 250;
 const STALE_SESSION_MS = 10 * 60 * 1000;
 const WAIT_TIMEOUT_MS = 60 * 1000;
 const SURPRISED_DEBOUNCE_MS = 1500;

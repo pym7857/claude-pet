@@ -49,9 +49,10 @@ The surprised animation is purely CSS — a 0.55s `translateY` keyframe loop on 
 >
 > Why this matters: Claude Code sometimes leaves a "waiting" SET in the state file without ever firing a matching `PostToolUse` / `PermissionDenied` (certain tool types, ESC-cancelled prompts, agent / MCP calls). Without a fallback the pet would stay red until the 10-minute stale window closed.
 >
-> Two safety nets in `main.js` and `renderer/renderer.js`:
+> Three safety nets in `main.js`, `renderer/renderer.js`, and `hooks/on-event.js`:
 > - `WAIT_TIMEOUT_MS = 60_000` — a session is only treated as waiting if its last "set" timestamp is at most 60 seconds old.
 > - `STALE_SESSION_MS = 10 * 60 * 1000` — sessions whose last event of any kind is over 10 minutes old are ignored entirely.
+> - `SURPRISED_DEBOUNCE_MS = 1500` — the pet/tray only switches to surprised when `waitingSince` (a hook-recorded timestamp of the most recent `false → true` transition) is at least 1.5 s old. Bursts of auto-allowed tools that flicker `permission → tool-post` in tens of milliseconds keep resetting `waitingSince` and never register visually. Real YES/NO prompts (wait ≫ 1.5 s) still surface.
 >
 > **Real YES/NO prompts are answered well within 60 s, so normal flow looks unchanged.** Orphaned signals self-clear in ≤60 s instead of ≤10 min.
 
@@ -161,8 +162,26 @@ Changes to `config.json` take effect within `pollIntervalMs` — no restart need
 ## Interactions
 
 - **Hover** — slides up a panel showing the list of tracked projects (the last two path segments, full path as native tooltip).
-- **Drag** — click and drag anywhere on the pet to move it. Position resets to `petPosition` on next launch.
-- **Tray icon** — *Show / Hide / Quit* menu from the macOS menu bar.
+- **Left-click + drag** — move the pet around. Position resets to `petPosition` on next launch.
+- **Right-click** — opens the built-in projects editor (see [Editing tracked projects from the pet](#editing-tracked-projects-from-the-pet)).
+- **Tray icon** — menu-bar entries: *Show / Hide / Edit projects… / Copy diagnostic snapshot / Quit*.
+
+## Editing tracked projects from the pet
+
+Right-click the pet (or click the menu-bar tray icon → **Edit projects…**) to open a small editor window listing the current `projects`.
+
+- **+ Add folder…** opens the native macOS folder picker; the chosen absolute path is appended.
+- **✕** next to any entry removes it.
+- **Save** writes back to `~/Library/Application Support/claude-pet/config.json` and closes the window after a brief confirmation.
+- **Cancel** discards changes (with a confirm prompt if there are unsaved edits).
+
+The save path uses five defensive patterns so a click can't leave the config broken:
+
+1. **Atomic write** — content is staged in `config.json.tmp` and `rename`d into place. A crash mid-write leaves the original untouched.
+2. **Auto-backup** — the previous `config.json` is copied to `config.json.bak` immediately before each save.
+3. **Schema preservation** — only the `projects` field is rewritten; `petPosition` / `petSize` / `pollIntervalMs` survive.
+4. **Post-write verification** — after `rename`, the file is read back and re-parsed; failure triggers a restore from `.bak`.
+5. **Sanitisation** — non-string entries, blanks, and duplicate paths are dropped before saving.
 
 ## Replacing the pixel art
 
@@ -291,6 +310,10 @@ tail -f ~/.claude/hooks/claude-pet/events.log
 ```
 
 You'll see one line per hook invocation — useful for spotting missing `tool-post`/`tool-fail`/`stop` events.
+
+### Reporting a bug
+
+Click the menu-bar tray icon → **Copy diagnostic snapshot**. A markdown blob with the current `state.json`, `config.json`, and the last 50 lines of `events.log` is placed on the clipboard (a macOS Notification confirms the copy). Paste it into the bug report — no manual `cat`/`tail`/`jq` needed. The snapshot contains absolute paths of your tracked projects, so review it before sharing publicly.
 
 ### After updating, hooks aren't firing correctly
 
