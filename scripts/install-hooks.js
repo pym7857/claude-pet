@@ -14,9 +14,11 @@ const EVENT_MAP = {
   UserPromptSubmit: 'prompt',
   Notification: 'notification',
   Stop: 'stop',
+  StopFailure: 'stop-fail',
   PermissionRequest: 'permission',
   PermissionDenied: 'permission-denied',
   PostToolUse: 'tool-post',
+  PostToolUseFailure: 'tool-fail',
 };
 
 function readSettings() {

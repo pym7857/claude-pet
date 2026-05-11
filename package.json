@@ -10,6 +10,7 @@
     "gen-assets": "node scripts/gen-assets.js",
     "install-hooks": "node scripts/install-hooks.js",
     "uninstall-hooks": "node scripts/install-hooks.js --uninstall",
+    "reset-state": "node scripts/reset-state.js",
     "dist": "electron-builder --mac --dir",
     "autostart:install": "node scripts/autostart.js install",
     "autostart:uninstall": "node scripts/autostart.js uninstall",
@@ -35,6 +36,7 @@
       "hooks/**/*",
       "scripts/install-hooks.js",
       "scripts/autostart.js",
+      "scripts/reset-state.js",
       "package.json"
     ],
     "mac": {

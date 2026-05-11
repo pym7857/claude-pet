@@ -23,7 +23,8 @@ The pet listens for Claude Code hooks (see [Claude Code hooks docs](https://code
 | `UserPromptSubmit` — you sent Claude a new prompt | Back to normal |
 | `PostToolUse` — the tool finished running | Back to normal |
 | `PermissionDenied` — auto-denied without prompting you | Back to normal |
-| `Stop` — Claude finished its response | Back to normal |
+| `Stop` / `StopFailure` — Claude finished its response (or was interrupted) | Back to normal |
+| `PostToolUseFailure` — the tool ran but threw an error | Back to normal |
 
 The surprised animation is purely CSS — a 0.55s `translateY` keyframe loop on the face plus a rotate/scale wiggle on the `!`. Stops the moment any "back to normal" event fires.
 
@@ -180,10 +181,39 @@ claude-pet/
 | `npm run gen-assets` | Regenerate all pixel-art PNGs from the ASCII art. |
 | `npm run install-hooks` | Register Claude Code hooks. |
 | `npm run uninstall-hooks` | Remove registered hooks. |
+| `npm run reset-state` | Delete the hook state file (use if the pet is stuck on surprised). |
 | `npm run dist` | Build `dist/mac-arm64/claude-pet.app`. |
 | `npm run autostart:install` | Install macOS LaunchAgent (auto-start at login). |
 | `npm run autostart:uninstall` | Remove the LaunchAgent. |
 | `npm run setup` | One-shot: `gen-assets` → `dist` → `install-hooks` → `autostart:install`. |
+
+## Troubleshooting
+
+### The pet stays surprised after I click YES/NO
+
+Most common cause: a previous Claude Code session was killed while waiting for a permission prompt, so its `waitingForUser: true` is still sitting in the state file.
+
+Quick fix:
+
+```bash
+npm run reset-state    # deletes ~/.claude/hooks/claude-pet/state.json
+```
+
+The renderer also automatically ignores sessions whose last event is older than 10 minutes, so the pet self-recovers if you walk away. To trace the issue, tail the event log:
+
+```bash
+tail -f ~/.claude/hooks/claude-pet/events.log
+```
+
+You'll see one line per hook invocation — useful for spotting missing `tool-post`/`tool-fail`/`stop` events.
+
+### After updating, hooks aren't firing correctly
+
+The hook event list may have changed. Re-run the installer to sync `~/.claude/settings.json`:
+
+```bash
+node scripts/install-hooks.js     # idempotent — replaces any previous claude-pet entries
+```
 
 ## Notes
 

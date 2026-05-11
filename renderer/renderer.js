@@ -62,9 +62,14 @@ function setMood(mood) {
   frameEl.classList.toggle('surprised', mood === 'surprised');
 }
 
+const STALE_SESSION_MS = 10 * 60 * 1000;
+
 function computeMood(state) {
+  const now = Date.now();
   const sessions = Object.values(state.sessions || {});
-  const anyWaiting = sessions.some((s) => s.waitingForUser);
+  const anyWaiting = sessions.some(
+    (s) => s.waitingForUser && now - (s.lastEventAt || 0) < STALE_SESSION_MS
+  );
   return anyWaiting ? 'surprised' : 'normal';
 }
 

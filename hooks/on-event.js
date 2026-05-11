@@ -69,7 +69,14 @@ function writeState(state) {
 
   const prior = state.sessions[sessionId] || {};
   const SETS_WAITING = new Set(['notification', 'permission']);
-  const CLEARS_WAITING = new Set(['prompt', 'tool-post', 'permission-denied', 'stop']);
+  const CLEARS_WAITING = new Set([
+    'prompt',
+    'tool-post',
+    'tool-fail',
+    'permission-denied',
+    'stop',
+    'stop-fail',
+  ]);
   let waitingForUser = prior.waitingForUser || false;
   if (SETS_WAITING.has(eventArg)) waitingForUser = true;
   else if (CLEARS_WAITING.has(eventArg)) waitingForUser = false;
@@ -83,5 +90,11 @@ function writeState(state) {
 
   state.lastEvent = { type: eventArg, at: now, sessionId, cwd };
   writeState(state);
+
+  try {
+    const logLine = `${new Date().toISOString()} | ${eventArg.padEnd(18)} | wait=${waitingForUser ? 'T' : 'F'} | ${sessionId.slice(0, 8)} | ${cwd}\n`;
+    fs.appendFileSync(path.join(STATE_DIR, 'events.log'), logLine);
+  } catch {}
+
   process.exit(0);
 })();
