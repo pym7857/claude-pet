@@ -25,7 +25,7 @@ Here's how it looks in the real menu bar (top-right corner of the screen, next t
 | ![tray normal](docs/face-normal.png) | ![tray alert](docs/face-red.png) |
 | Beige bread — same as the pet face. | Recoloured bright red the moment any tracked session goes into `waitingForUser`. |
 
-The main process polls `~/.claude/hooks/claude-pet/state.json` once a second and swaps the tray image automatically — no restart, no extra config. Sessions whose last event is older than 10 minutes are treated as stale and ignored (same threshold the pet window uses). The tray itself sits in the top-right of the macOS menu bar; `LSUIElement: true` keeps the app out of the Dock and ⌘+Tab.
+The main process polls `~/.claude/hooks/claude-pet/state.json` once a second and swaps the tray image automatically — no restart, no extra config. Sessions whose last event is older than 10 minutes are treated as stale and ignored (same threshold the pet window uses), **and any "waiting" signal older than 60 seconds is also ignored** (see [Auto-clear policy](#auto-clear-policy) below). The tray itself sits in the top-right of the macOS menu bar; `LSUIElement: true` keeps the app out of the Dock and ⌘+Tab.
 
 ## How it reacts to Claude Code events
 
@@ -42,6 +42,18 @@ The pet listens for Claude Code hooks (see [Claude Code hooks docs](https://code
 | `PostToolUseFailure` — the tool ran but threw an error | Back to normal |
 
 The surprised animation is purely CSS — a 0.55s `translateY` keyframe loop on the face plus a rotate/scale wiggle on the `!`. Stops the moment any "back to normal" event fires.
+
+### Auto-clear policy
+
+> ⚠️ **The pet automatically returns to normal after ~60 seconds even if no "back to normal" event arrives.**
+>
+> Why this matters: Claude Code sometimes leaves a "waiting" SET in the state file without ever firing a matching `PostToolUse` / `PermissionDenied` (certain tool types, ESC-cancelled prompts, agent / MCP calls). Without a fallback the pet would stay red until the 10-minute stale window closed.
+>
+> Two safety nets in `main.js` and `renderer/renderer.js`:
+> - `WAIT_TIMEOUT_MS = 60_000` — a session is only treated as waiting if its last "set" timestamp is at most 60 seconds old.
+> - `STALE_SESSION_MS = 10 * 60 * 1000` — sessions whose last event of any kind is over 10 minutes old are ignored entirely.
+>
+> **Real YES/NO prompts are answered well within 60 s, so normal flow looks unchanged.** Orphaned signals self-clear in ≤60 s instead of ≤10 min.
 
 ## Two ways to run it
 
@@ -269,7 +281,7 @@ Quick fix:
 npm run reset-state    # deletes ~/.claude/hooks/claude-pet/state.json
 ```
 
-The renderer also automatically ignores sessions whose last event is older than 10 minutes, so the pet self-recovers if you walk away. To trace the issue, tail the event log:
+The renderer also automatically ignores sessions whose last event is older than 10 minutes, **and any "waiting" SET older than 60 seconds**, so the pet self-recovers even without a manual reset. See [Auto-clear policy](#auto-clear-policy) for the rationale. To trace the issue, tail the event log:
 
 ```bash
 tail -f ~/.claude/hooks/claude-pet/events.log
