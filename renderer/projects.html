@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Edit tracked projects</title>
+    <link rel="stylesheet" href="projects.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Tracked projects</h1>
+      <p class="hint">
+        The pet reacts only to Claude Code sessions whose <code>cwd</code> is inside one of these folders (or any subdirectory).
+      </p>
+      <ul id="list" class="list"></ul>
+      <button id="add" class="btn add" type="button">+ Add folder…</button>
+      <div class="status" id="status"></div>
+      <div class="actions">
+        <button id="cancel" class="btn" type="button">Cancel</button>
+        <button id="save" class="btn primary" type="button">Save</button>
+      </div>
+    </div>
+    <script src="projects.js"></script>
+  </body>
+</html>

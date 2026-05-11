@@ -15,4 +15,9 @@ contextBridge.exposeInMainWorld('petAPI', {
   readConfig: () => readJson(CONFIG_FILE, {}),
   dragStart: () => ipcRenderer.send('pet-drag-start'),
   dragStop: () => ipcRenderer.send('pet-drag-stop'),
+  openEditor: () => ipcRenderer.send('pet:open-editor'),
+  getProjects: () => ipcRenderer.invoke('config:get-projects'),
+  pickFolder: () => ipcRenderer.invoke('config:pick-folder'),
+  saveProjects: (projects) => ipcRenderer.invoke('config:save-projects', projects),
+  closeEditor: () => ipcRenderer.send('editor:close'),
 });

@@ -13,10 +13,16 @@ frameEl.addEventListener('mouseleave', () => {
 
 frameEl.addEventListener('mousedown', (e) => {
   if (e.target.closest('#tooltip')) return;
+  if (e.button !== 0) return;
   window.petAPI.dragStart();
 });
 document.addEventListener('mouseup', () => window.petAPI.dragStop());
 window.addEventListener('blur', () => window.petAPI.dragStop());
+
+document.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  window.petAPI.openEditor();
+});
 
 let lastProjectsHash = null;
 function renderProjectsIfChanged(projects) {
@@ -64,17 +70,28 @@ function setMood(mood) {
 
 const STALE_SESSION_MS = 10 * 60 * 1000;
 const WAIT_TIMEOUT_MS = 60 * 1000;
+const SURPRISED_DEBOUNCE_MS = 1500;
 
-function computeMood(state) {
+let waitingSince = null;
+
+function isAnyWaiting(state) {
   const now = Date.now();
   const sessions = Object.values(state.sessions || {});
-  const anyWaiting = sessions.some((s) => {
+  return sessions.some((s) => {
     if (!s.waitingForUser) return false;
     if (now - (s.lastEventAt || 0) >= STALE_SESSION_MS) return false;
     if (s.lastSetAt && now - s.lastSetAt >= WAIT_TIMEOUT_MS) return false;
     return true;
   });
-  return anyWaiting ? 'surprised' : 'normal';
+}
+
+function computeMood(state) {
+  if (isAnyWaiting(state)) {
+    if (waitingSince === null) waitingSince = Date.now();
+    return Date.now() - waitingSince >= SURPRISED_DEBOUNCE_MS ? 'surprised' : 'normal';
+  }
+  waitingSince = null;
+  return 'normal';
 }
 
 function tick() {

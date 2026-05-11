@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Pet appeared to stay red even though all permission prompts had been answered.** Root cause was visual, not data — `PreToolUse` fires on every tool use including auto-allowed ones, producing very short `permission → tool-post` flicker pairs (tens of milliseconds). When Claude ran many auto-allowed tools back-to-back the flickers blurred into "always red" to the eye. Fixed by adding a **1.5-second debounce on the surprised face**: `waitingForUser` must remain true for at least `SURPRISED_DEBOUNCE_MS = 1500` before the pet window switches to surprised or the menu-bar tray turns red. Real YES/NO prompts (wait time ≫ 1.5 s) are unaffected; auto-allowed tool bursts no longer register visually.
+
+### Added
+
+- **Right-click the pet (or use the tray "Edit projects…" menu) to open a built-in projects editor.** The editor is a small BrowserWindow that lists the currently tracked folders, lets you pick new ones via the native macOS folder dialog, remove existing entries with one click, and saves back to `~/Library/Application Support/claude-pet/config.json`. Safety patterns applied to the save path: atomic write (`.tmp` + `rename`), automatic `.bak` snapshot before each save, schema preservation (only `projects` is touched; `petPosition` / `petSize` / `pollIntervalMs` are kept), post-write reload verification, and validation that drops non-string / empty / duplicate entries.
+
 ### Changed
 
 - **Unified `config.json` location across dev mode and the packaged `.app`.** Previously `lib/paths.js` resolved `USER_DATA_DIR` to the source folder in dev mode and to `~/Library/Application Support/claude-pet` only when packaged, which meant the source `config.json` (used by `npm start` + every hook) and the `.app` `config.json` (used by the packaged pet) could drift out of sync — projects added in one place wouldn't be respected in the other. `USER_DATA_DIR` is now hard-coded to `~/Library/Application Support/claude-pet` for every mode. One file, one edit. The source `config.json` is now unused (already `.gitignore`d, safe to delete).

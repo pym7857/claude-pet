@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, Menu, Tray, nativeImage, ipcMain } = require('electron');
+const { app, BrowserWindow, screen, Menu, Tray, nativeImage, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { CONFIG_FILE, CONFIG_EXAMPLE, USER_DATA_DIR, STATE_FILE } = require('./lib/paths');
@@ -7,6 +7,9 @@ const TRAY_SIZE = 22;
 const TRAY_POLL_MS = 1000;
 const STALE_SESSION_MS = 10 * 60 * 1000;
 const WAIT_TIMEOUT_MS = 60 * 1000;
+const SURPRISED_DEBOUNCE_MS = 1500;
+
+let trayWaitingSince = null;
 
 function ensureConfig() {
   if (fs.existsSync(CONFIG_FILE)) return;
@@ -22,6 +25,29 @@ function loadConfig() {
   } catch {
     return {};
   }
+}
+
+function sanitizeProjects(list) {
+  const seen = new Set();
+  const out = [];
+  for (const item of Array.isArray(list) ? list : []) {
+    if (typeof item !== 'string') continue;
+    const trimmed = item.trim();
+    if (!trimmed) continue;
+    if (seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+  }
+  return out;
+}
+
+function saveConfigFull(cfg) {
+  fs.mkdirSync(USER_DATA_DIR, { recursive: true });
+  try { fs.copyFileSync(CONFIG_FILE, CONFIG_FILE + '.bak'); } catch {}
+  const tmp = CONFIG_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(cfg, null, 2) + '\n');
+  fs.renameSync(tmp, CONFIG_FILE);
+  return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
 }
 
 let win = null;
@@ -49,6 +75,71 @@ ipcMain.on('pet-drag-start', () => {
 
 ipcMain.on('pet-drag-stop', () => {
   dragging = false;
+});
+
+let editorWin = null;
+
+function openEditor() {
+  if (editorWin && !editorWin.isDestroyed()) {
+    editorWin.focus();
+    return;
+  }
+  editorWin = new BrowserWindow({
+    width: 480,
+    height: 480,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    title: 'claude-pet — Edit projects',
+    backgroundColor: '#1e1e1e',
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+  editorWin.setMenu(null);
+  editorWin.loadFile(path.join(__dirname, 'renderer', 'projects.html'));
+  editorWin.once('ready-to-show', () => editorWin.show());
+  editorWin.on('closed', () => { editorWin = null; });
+  if (process.env.CLAUDE_PET_DEVTOOLS === '1') {
+    editorWin.webContents.openDevTools({ mode: 'detach' });
+  }
+}
+
+ipcMain.on('pet:open-editor', openEditor);
+ipcMain.on('editor:close', () => {
+  if (editorWin && !editorWin.isDestroyed()) editorWin.close();
+});
+
+ipcMain.handle('config:get-projects', () => {
+  const cfg = loadConfig();
+  return Array.isArray(cfg.projects) ? cfg.projects : [];
+});
+
+ipcMain.handle('config:pick-folder', async () => {
+  const target = (editorWin && !editorWin.isDestroyed()) ? editorWin : win;
+  const r = await dialog.showOpenDialog(target, {
+    properties: ['openDirectory'],
+    title: 'Choose a project folder to track',
+  });
+  if (r.canceled || !r.filePaths || !r.filePaths[0]) return null;
+  return r.filePaths[0];
+});
+
+ipcMain.handle('config:save-projects', (_, projects) => {
+  try {
+    const sanitized = sanitizeProjects(projects);
+    const cfg = loadConfig();
+    cfg.projects = sanitized;
+    saveConfigFull(cfg);
+    return { ok: true, projects: sanitized };
+  } catch (e) {
+    try { fs.copyFileSync(CONFIG_FILE + '.bak', CONFIG_FILE); } catch {}
+    return { ok: false, error: String((e && e.message) || e) };
+  }
 });
 
 function positionFor(display, size, where) {
@@ -135,9 +226,18 @@ function isAnyWaiting() {
   }
 }
 
+function shouldShowAlert() {
+  if (isAnyWaiting()) {
+    if (trayWaitingSince === null) trayWaitingSince = Date.now();
+    return Date.now() - trayWaitingSince >= SURPRISED_DEBOUNCE_MS;
+  }
+  trayWaitingSince = null;
+  return false;
+}
+
 function updateTrayIcon() {
   if (!tray || (tray.isDestroyed && tray.isDestroyed())) return;
-  const next = isAnyWaiting() ? 'alert' : 'normal';
+  const next = shouldShowAlert() ? 'alert' : 'normal';
   if (next === lastTrayState) return;
   lastTrayState = next;
   tray.setImage(next === 'alert' ? trayAlertImage : trayNormalImage);
@@ -152,6 +252,7 @@ function createTray() {
     Menu.buildFromTemplate([
       { label: 'Show', click: () => win && win.show() },
       { label: 'Hide', click: () => win && win.hide() },
+      { label: 'Edit projects…', click: openEditor },
       { type: 'separator' },
       { label: 'Quit', click: () => app.quit() },
     ])
