@@ -12,6 +12,17 @@ When Claude is waiting for your YES/NO answer on an inline permission prompt, th
 
 The pet is rendered as a 32×32 pixel-art face inside a rounded 160×160 frame and stays on top of all windows. It's hidden from the Dock and only appears in the menu-bar tray.
 
+## Menu bar tray icon
+
+The macOS menu-bar tray icon **mirrors the pet's mood**, so you can still tell Claude needs you even when the pet window is hidden, dragged off-screen, or covered by another window.
+
+| Idle | Waiting for you |
+|:-:|:-:|
+| ![tray normal](docs/face-normal.png) | ![tray alert](docs/face-red.png) |
+| Beige bread — same as the pet face. | Recoloured bright red the moment any tracked session goes into `waitingForUser`. |
+
+The main process polls `~/.claude/hooks/claude-pet/state.json` once a second and swaps the tray image automatically — no restart, no extra config. Sessions whose last event is older than 10 minutes are treated as stale and ignored (same threshold the pet window uses). The tray itself sits in the top-right of the macOS menu bar; `LSUIElement: true` keeps the app out of the Dock and ⌘+Tab.
+
 ## How it reacts to Claude Code events
 
 The pet listens for Claude Code hooks (see [Claude Code hooks docs](https://code.claude.com/docs/en/hooks)) and only reacts for sessions whose `cwd` is in your tracked-project allowlist.
@@ -67,6 +78,16 @@ node /Applications/claude-pet.app/Contents/Resources/app/scripts/install-hooks.j
 npm run autostart:install                               # install macOS LaunchAgent
 ```
 
+Once the `.app` is in `/Applications/`, it behaves like any other macOS application — you can launch it at any time without `npm start`:
+
+<p align="right"><img src="docs/finder-icon.png" alt="claude-pet in /Applications" width="140" /></p>
+
+- **Finder**: open `/Applications/`, double-click **claude-pet** (icon shown on the right).
+- **Spotlight**: ⌘+Space → type "claude-pet" → Return.
+- **Terminal**: `open /Applications/claude-pet.app`.
+
+The hook re-registration and `autostart:install` steps above are optional conveniences; you can skip both and still launch the pet manually via any of the methods just listed.
+
 After this:
 - The pet launches immediately.
 - Every login the pet starts automatically — no terminal, no `npm start`.
@@ -90,6 +111,26 @@ node scripts/install-hooks.js --uninstall
 
 > **Code signing note:** The `.app` is not signed (no Apple Developer ID). The first time you double-click it from Finder, macOS Gatekeeper may complain. Right-click → **Open** to bypass it once.
 
+### When do I need to rebuild the `.app`?
+
+| You changed... | Dev mode (`npm start`) | Packaged `.app` |
+|---|---|---|
+| `main.js` / `preload.js` / `renderer/*` / `lib/*` | restart `npm start` | **rebuild required** |
+| `scripts/gen-assets.js` or any pixel art | `npm run gen-assets`, then restart | **rebuild required** |
+| `hooks/on-event.js` | nothing — Claude Code re-spawns it per event | nothing if hooks point at the source folder; **re-install hooks** if you want the `.app` copy to be used |
+| `~/.claude/settings.json` (hook registration) | nothing | nothing |
+| `config.json` (`projects`, etc.) | picked up within `pollIntervalMs` | picked up within `pollIntervalMs` |
+
+To rebuild and replace the installed `.app` in one go:
+
+```bash
+npm run deploy
+```
+
+Which runs `gen-assets` → `dist` → removes `/Applications/claude-pet.app` → moves the freshly-built `dist/mac-arm64/claude-pet.app` into `/Applications/`. (Apple Silicon path is hard-coded; on Intel Macs swap `mac-arm64` for `mac-x64` in `package.json`.)
+
+So in practice: **iterate with `npm start`**, and only run `npm run deploy` when you want to ship the changes to the auto-start / Finder-launched copy.
+
 ## Configuration reference (`config.json`)
 
 | Key | Default | Meaning |
@@ -111,8 +152,9 @@ Changes to `config.json` take effect within `pollIntervalMs` — no restart need
 
 Drop your own PNGs into `renderer/assets/`:
 
-- `normal.png` — idle face
-- `surprised.png` — waiting-for-you face
+- `normal.png` — idle face (also used as the idle menu-bar tray icon)
+- `surprised.png` — waiting-for-you face (pet window)
+- `surprised-red.png` — alert menu-bar tray icon
 
 Any square size works; CSS uses `image-rendering: pixelated` so pixel art stays crisp at any scale. If you want to also update the `.app` icon, drop a 1024×1024 PNG at `build/icon.png` and rebuild with `npm run dist`.
 
@@ -158,7 +200,8 @@ claude-pet/
 │   ├── renderer.js             # state polling, mood switching, project list
 │   └── assets/
 │       ├── normal.png
-│       └── surprised.png
+│       ├── surprised.png
+│       └── surprised-red.png      # alert tray icon (recoloured)
 ├── hooks/
 │   └── on-event.js             # Claude Code hook handler (cwd filter)
 ├── scripts/
@@ -169,7 +212,9 @@ claude-pet/
 │   └── icon.png                # 1024×1024 icon for the .app bundle
 └── docs/
     ├── face-normal.png         # used in this README
-    └── face-surprised.png
+    ├── face-surprised.png
+    ├── face-red.png            # tray alert variant, used in README
+    └── finder-icon.png         # /Applications/ Finder screenshot, used in README
 ```
 
 ## npm scripts
@@ -183,11 +228,31 @@ claude-pet/
 | `npm run uninstall-hooks` | Remove registered hooks. |
 | `npm run reset-state` | Delete the hook state file (use if the pet is stuck on surprised). |
 | `npm run dist` | Build `dist/mac-arm64/claude-pet.app`. |
+| `npm run deploy` | `gen-assets` + `dist` + replace `/Applications/claude-pet.app` in one shot. |
 | `npm run autostart:install` | Install macOS LaunchAgent (auto-start at login). |
 | `npm run autostart:uninstall` | Remove the LaunchAgent. |
 | `npm run setup` | One-shot: `gen-assets` → `dist` → `install-hooks` → `autostart:install`. |
 
 ## Troubleshooting
+
+### How do I quit the pet?
+
+Normally: top-right of the macOS menu bar → click the **bread tray icon** → **Quit**. (The pet has `LSUIElement: true` so it never appears in the Dock or ⌘+Tab — the tray is the only normal UI for quitting.)
+
+If the tray icon is missing, hidden behind a menu-bar manager (Bartender / Ice), or just unresponsive, kill it from the terminal:
+
+```bash
+# Dev mode (started with `npm start` from the source folder)
+pkill -f "claude-pet"
+
+# Packaged .app (started by double-clicking /Applications/claude-pet.app)
+killall "claude-pet" 2>/dev/null
+
+# Last resort if either of the above hangs
+pkill -9 -f claude-pet
+```
+
+After that you can relaunch with `npm start` or by opening the `.app` again.
 
 ### The pet stays surprised after I click YES/NO
 

@@ -22,6 +22,13 @@ const COLORS = {
   R: [200, 40, 40, 255],
 };
 
+const RED_COLORS = {
+  ...COLORS,
+  S: [235, 60, 60, 255],
+  H: [130, 15, 15, 255],
+  C: [255, 230, 230, 255],
+};
+
 const NORMAL = `
 ________HHHHHHHH________
 ______HHHHHHHHHHHH______
@@ -64,7 +71,7 @@ _____HHSSSSSSSSSSHH_____
 ______HHHHHHHHHHHH______
 `;
 
-function parseArt(art) {
+function parseArt(art, colors = COLORS) {
   const rows = art.trim().split('\n').map((r) => r.trim());
   const h = SIZE;
   const w = SIZE;
@@ -81,7 +88,7 @@ function parseArt(art) {
       if (sy >= 0 && sy < artH && sx >= 0 && sx < (rows[sy] || '').length) {
         ch = rows[sy][sx];
       }
-      const c = COLORS[ch] || COLORS._;
+      const c = colors[ch] || colors._;
       const i = (y * w + x) * 4;
       pixels[i] = c[0];
       pixels[i + 1] = c[1];
@@ -164,8 +171,8 @@ function scaleUp(pixels, srcSize, factor) {
   return out;
 }
 
-function write(name, art) {
-  const pixels = parseArt(art);
+function write(name, art, colors = COLORS) {
+  const pixels = parseArt(art, colors);
   const png = encodePng(pixels, SIZE, SIZE);
   const out = path.join(OUT_DIR, name);
   fs.writeFileSync(out, png);
@@ -175,6 +182,7 @@ function write(name, art) {
 
 const normalPixels = write('normal.png', NORMAL);
 const surprisedPixels = write('surprised.png', SURPRISED);
+const surprisedRedPixels = write('surprised-red.png', SURPRISED, RED_COLORS);
 
 function writeScaled(pixels, outPath, targetSize) {
   const factor = targetSize / SIZE;
@@ -187,3 +195,4 @@ function writeScaled(pixels, outPath, targetSize) {
 writeScaled(normalPixels, path.join(BUILD_DIR, 'icon.png'), 1024);
 writeScaled(normalPixels, path.join(DOCS_DIR, 'face-normal.png'), 256);
 writeScaled(surprisedPixels, path.join(DOCS_DIR, 'face-surprised.png'), 256);
+writeScaled(surprisedRedPixels, path.join(DOCS_DIR, 'face-red.png'), 256);

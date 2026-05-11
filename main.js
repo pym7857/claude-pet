@@ -1,7 +1,11 @@
 const { app, BrowserWindow, screen, Menu, Tray, nativeImage, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { CONFIG_FILE, CONFIG_EXAMPLE, USER_DATA_DIR } = require('./lib/paths');
+const { CONFIG_FILE, CONFIG_EXAMPLE, USER_DATA_DIR, STATE_FILE } = require('./lib/paths');
+
+const TRAY_SIZE = 22;
+const TRAY_POLL_MS = 1000;
+const STALE_SESSION_MS = 10 * 60 * 1000;
 
 function ensureConfig() {
   if (fs.existsSync(CONFIG_FILE)) return;
@@ -102,15 +106,43 @@ function createWindow() {
   }
 }
 
-function createTray() {
-  const iconPath = path.join(__dirname, 'renderer', 'assets', 'normal.png');
-  let image;
+function loadTrayImage(name) {
+  const p = path.join(__dirname, 'renderer', 'assets', name);
   try {
-    image = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+    return nativeImage.createFromPath(p).resize({ width: TRAY_SIZE, height: TRAY_SIZE });
   } catch {
-    image = nativeImage.createEmpty();
+    return nativeImage.createEmpty();
   }
-  tray = new Tray(image);
+}
+
+let trayNormalImage = null;
+let trayAlertImage = null;
+let lastTrayState = null;
+
+function isAnyWaiting() {
+  try {
+    const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    const now = Date.now();
+    return Object.values(state.sessions || {}).some(
+      (s) => s.waitingForUser && now - (s.lastEventAt || 0) < STALE_SESSION_MS
+    );
+  } catch {
+    return false;
+  }
+}
+
+function updateTrayIcon() {
+  if (!tray || (tray.isDestroyed && tray.isDestroyed())) return;
+  const next = isAnyWaiting() ? 'alert' : 'normal';
+  if (next === lastTrayState) return;
+  lastTrayState = next;
+  tray.setImage(next === 'alert' ? trayAlertImage : trayNormalImage);
+}
+
+function createTray() {
+  trayNormalImage = loadTrayImage('normal.png');
+  trayAlertImage = loadTrayImage('surprised-red.png');
+  tray = new Tray(trayNormalImage);
   tray.setToolTip('claude-pet');
   tray.setContextMenu(
     Menu.buildFromTemplate([
@@ -120,6 +152,8 @@ function createTray() {
       { label: 'Quit', click: () => app.quit() },
     ])
   );
+  lastTrayState = 'normal';
+  setInterval(updateTrayIcon, TRAY_POLL_MS);
 }
 
 app.whenReady().then(() => {
