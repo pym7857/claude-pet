@@ -6,5 +6,5 @@ node_modules/
 dist/
 out/
 
-# user-specific config; copy from config.example.json
+# user-specific config; created on first launch from config.example.json
 config.json

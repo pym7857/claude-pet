@@ -80,6 +80,55 @@ npm run dev   # opens Electron DevTools
 
 Useful for inspecting the renderer console or watching hook state updates.
 
+## Packaging into a .app
+
+Build a native macOS application bundle so you can launch the pet by double-clicking it (no terminal / npm).
+
+```bash
+npm run dist
+```
+
+Output: `dist/mac-arm64/claude-pet.app` (or `mac-x64`). The `.app` is hidden from the Dock (`LSUIElement: true`) so it only appears in the menu bar tray.
+
+Move it into Applications:
+
+```bash
+mv dist/mac-arm64/claude-pet.app /Applications/
+```
+
+When running from a packaged `.app`, `config.json` lives in `~/Library/Application Support/claude-pet/` (the user-writable location). The bundle ships with `config.example.json` and is copied there on first launch. The hook handler also reads from that user-data location when invoked from inside a packaged app.
+
+## Auto-start at login
+
+After installing the `.app`, register a macOS LaunchAgent so the pet launches at every login:
+
+```bash
+npm run autostart:install
+```
+
+This writes `~/Library/LaunchAgents/com.pym7857.claude-pet.plist` pointing at the `.app` binary and loads it. The pet starts immediately and again every time you log in.
+
+Remove it:
+
+```bash
+npm run autostart:uninstall
+```
+
+## One-shot setup
+
+After cloning:
+
+```bash
+npm install
+npm run setup
+```
+
+`setup` runs `gen-assets` → `dist` → `install-hooks` → `autostart:install`. After it finishes:
+
+1. Move `dist/mac-arm64/claude-pet.app` to `/Applications/` (the autostart script falls back to `dist/` if you skip this, but `/Applications/` is the stable location).
+2. Edit `~/Library/Application Support/claude-pet/config.json` to add the absolute paths of projects you want to track.
+3. Done — the pet is running and will keep starting at every login.
+
 ## Project layout
 
 ```

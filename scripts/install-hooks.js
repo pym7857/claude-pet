@@ -5,6 +5,7 @@ const os = require('os');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const HOOK_SCRIPT = path.join(PROJECT_ROOT, 'hooks', 'on-event.js');
+const NODE_BIN = process.execPath;
 const SETTINGS_FILE = path.join(os.homedir(), '.claude', 'settings.json');
 const MARKER = HOOK_SCRIPT;
 
@@ -58,7 +59,7 @@ function install() {
       hooks: [
         {
           type: 'command',
-          command: `node ${HOOK_SCRIPT} ${arg}`,
+          command: `${NODE_BIN} ${HOOK_SCRIPT} ${arg}`,
         },
       ],
     });

@@ -4,7 +4,9 @@ const path = require('path');
 const zlib = require('zlib');
 
 const OUT_DIR = path.resolve(__dirname, '..', 'renderer', 'assets');
+const BUILD_DIR = path.resolve(__dirname, '..', 'build');
 fs.mkdirSync(OUT_DIR, { recursive: true });
+fs.mkdirSync(BUILD_DIR, { recursive: true });
 
 const SIZE = 32;
 
@@ -142,13 +144,40 @@ function encodePng(pixels, w, h) {
   ]);
 }
 
+function scaleUp(pixels, srcSize, factor) {
+  const dst = srcSize * factor;
+  const out = new Uint8Array(dst * dst * 4);
+  for (let y = 0; y < dst; y++) {
+    const sy = Math.floor(y / factor);
+    for (let x = 0; x < dst; x++) {
+      const sx = Math.floor(x / factor);
+      const si = (sy * srcSize + sx) * 4;
+      const di = (y * dst + x) * 4;
+      out[di] = pixels[si];
+      out[di + 1] = pixels[si + 1];
+      out[di + 2] = pixels[si + 2];
+      out[di + 3] = pixels[si + 3];
+    }
+  }
+  return out;
+}
+
 function write(name, art) {
   const pixels = parseArt(art);
   const png = encodePng(pixels, SIZE, SIZE);
   const out = path.join(OUT_DIR, name);
   fs.writeFileSync(out, png);
   console.log('wrote', out, png.length, 'bytes');
+  return pixels;
 }
 
-write('normal.png', NORMAL);
+const normalPixels = write('normal.png', NORMAL);
 write('surprised.png', SURPRISED);
+
+const ICON_SIZE = 1024;
+const factor = ICON_SIZE / SIZE;
+const iconPixels = scaleUp(normalPixels, SIZE, factor);
+const iconPng = encodePng(iconPixels, ICON_SIZE, ICON_SIZE);
+const iconPath = path.join(BUILD_DIR, 'icon.png');
+fs.writeFileSync(iconPath, iconPng);
+console.log('wrote', iconPath, iconPng.length, 'bytes');

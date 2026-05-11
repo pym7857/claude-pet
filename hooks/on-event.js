@@ -1,12 +1,7 @@
 #!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
-
-const PROJECT_ROOT = path.resolve(__dirname, '..');
-const STATE_DIR = path.join(os.homedir(), '.claude', 'hooks', 'claude-pet');
-const STATE_FILE = path.join(STATE_DIR, 'state.json');
-const CONFIG_FILE = path.join(PROJECT_ROOT, 'config.json');
+const { STATE_DIR, STATE_FILE, CONFIG_FILE } = require('../lib/paths');
 
 function readStdin() {
   return new Promise((resolve) => {

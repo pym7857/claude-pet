@@ -3,14 +3,53 @@
   "version": "0.1.0",
   "description": "Desktop pet that reacts to Claude Code events with pixel art faces",
   "main": "main.js",
+  "author": "pym7857",
   "scripts": {
     "start": "ELECTRON_RUN_AS_NODE= electron .",
     "dev": "ELECTRON_RUN_AS_NODE= CLAUDE_PET_DEVTOOLS=1 electron .",
     "gen-assets": "node scripts/gen-assets.js",
     "install-hooks": "node scripts/install-hooks.js",
-    "uninstall-hooks": "node scripts/install-hooks.js --uninstall"
+    "uninstall-hooks": "node scripts/install-hooks.js --uninstall",
+    "dist": "electron-builder --mac --dir",
+    "autostart:install": "node scripts/autostart.js install",
+    "autostart:uninstall": "node scripts/autostart.js uninstall",
+    "setup": "npm run gen-assets && npm run dist && npm run install-hooks && npm run autostart:install"
   },
   "devDependencies": {
-    "electron": "^32.0.0"
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.pym7857.claude-pet",
+    "productName": "claude-pet",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "config.example.json",
+      "lib/**/*",
+      "renderer/**/*",
+      "hooks/**/*",
+      "scripts/install-hooks.js",
+      "scripts/autostart.js",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.png",
+      "target": {
+        "target": "dir",
+        "arch": [
+          "arm64",
+          "x64"
+        ]
+      },
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    }
   }
 }

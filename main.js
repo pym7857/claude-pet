@@ -1,15 +1,14 @@
 const { app, BrowserWindow, screen, Menu, Tray, nativeImage, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
-
-const CONFIG_FILE = path.join(__dirname, 'config.json');
-const CONFIG_EXAMPLE = path.join(__dirname, 'config.example.json');
+const { CONFIG_FILE, CONFIG_EXAMPLE, USER_DATA_DIR } = require('./lib/paths');
 
 function ensureConfig() {
   if (fs.existsSync(CONFIG_FILE)) return;
   if (!fs.existsSync(CONFIG_EXAMPLE)) return;
+  fs.mkdirSync(USER_DATA_DIR, { recursive: true });
   fs.copyFileSync(CONFIG_EXAMPLE, CONFIG_FILE);
-  console.log('[claude-pet] created config.json from config.example.json — edit it to add tracked projects');
+  console.log('[claude-pet] created', CONFIG_FILE);
 }
 
 function loadConfig() {
