@@ -8,7 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **Pet appeared to stay red even though all permission prompts had been answered.** Root cause was visual, not data — `PreToolUse` fires on every tool use including auto-allowed ones, producing very short `permission → tool-post` flicker pairs (tens of milliseconds). When Claude ran many auto-allowed tools back-to-back the flickers blurred into "always red" to the eye. Fixed by adding a **1.5-second debounce on the surprised face**: `waitingForUser` must remain true for at least `SURPRISED_DEBOUNCE_MS = 1500` before the pet window switches to surprised or the menu-bar tray turns red. Real YES/NO prompts (wait time ≫ 1.5 s) are unaffected; auto-allowed tool bursts no longer register visually.
+- **Pet appeared to stay red even though all permission prompts had been answered.** Root cause was visual, not data — `PreToolUse` fires on every tool use including auto-allowed ones, producing very short `permission → tool-post` flicker pairs (tens of milliseconds). When Claude ran many auto-allowed tools back-to-back the flickers blurred into "always red" to the eye.
+
+  Initial attempt at a 1.5s UI-side debounce wasn't enough: the renderer / main process only sample `state.json` every ~500 ms-1 s, so polling could catch `wait=true` two ticks in a row purely by luck (~25 % chance per burst) and the debounce window would erroneously elapse. The real fix is at the **hook layer**: `hooks/on-event.js` now writes a `waitingSince` timestamp into each session, capturing only the **transition** from `wait=false` to `wait=true` and resetting to `0` on any clear. The renderer and tray then compare `now - waitingSince` against `SURPRISED_DEBOUNCE_MS = 1500`, independent of polling cadence. Bursts of auto-allowed tools — where `wait=false` keeps slipping in between two `wait=true` transitions, even for microseconds — keep resetting `waitingSince` and never register visually. Real YES/NO prompts (wait time ≫ 1.5 s) still surface as expected.
 
 ### Added
 

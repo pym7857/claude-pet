@@ -72,26 +72,17 @@ const STALE_SESSION_MS = 10 * 60 * 1000;
 const WAIT_TIMEOUT_MS = 60 * 1000;
 const SURPRISED_DEBOUNCE_MS = 1500;
 
-let waitingSince = null;
-
-function isAnyWaiting(state) {
+function computeMood(state) {
   const now = Date.now();
   const sessions = Object.values(state.sessions || {});
-  return sessions.some((s) => {
+  const anyWaiting = sessions.some((s) => {
     if (!s.waitingForUser) return false;
     if (now - (s.lastEventAt || 0) >= STALE_SESSION_MS) return false;
     if (s.lastSetAt && now - s.lastSetAt >= WAIT_TIMEOUT_MS) return false;
+    if (!s.waitingSince || now - s.waitingSince < SURPRISED_DEBOUNCE_MS) return false;
     return true;
   });
-}
-
-function computeMood(state) {
-  if (isAnyWaiting(state)) {
-    if (waitingSince === null) waitingSince = Date.now();
-    return Date.now() - waitingSince >= SURPRISED_DEBOUNCE_MS ? 'surprised' : 'normal';
-  }
-  waitingSince = null;
-  return 'normal';
+  return anyWaiting ? 'surprised' : 'normal';
 }
 
 function tick() {

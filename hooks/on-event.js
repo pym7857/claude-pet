@@ -109,11 +109,17 @@ async function withLock(fn) {
     state.sessions = state.sessions || {};
     const prior = state.sessions[sessionId] || {};
 
+    const wasWaiting = (prior.lastSetAt || 0) > (prior.lastClearAt || 0);
+
     let lastSetAt = prior.lastSetAt || 0;
     let lastClearAt = prior.lastClearAt || 0;
     if (SETS_WAITING.has(eventArg)) lastSetAt = Math.max(lastSetAt, now);
     else if (CLEARS_WAITING.has(eventArg)) lastClearAt = Math.max(lastClearAt, now);
     waitingForUser = lastSetAt > lastClearAt;
+
+    let waitingSince = prior.waitingSince || 0;
+    if (!wasWaiting && waitingForUser) waitingSince = now;
+    else if (!waitingForUser) waitingSince = 0;
 
     state.sessions[sessionId] = {
       cwd,
@@ -121,6 +127,7 @@ async function withLock(fn) {
       lastEventAt: now,
       lastSetAt,
       lastClearAt,
+      waitingSince,
       waitingForUser,
     };
     state.lastEvent = { type: eventArg, at: now, sessionId, cwd };

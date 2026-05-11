@@ -9,8 +9,6 @@ const STALE_SESSION_MS = 10 * 60 * 1000;
 const WAIT_TIMEOUT_MS = 60 * 1000;
 const SURPRISED_DEBOUNCE_MS = 1500;
 
-let trayWaitingSince = null;
-
 function ensureConfig() {
   if (fs.existsSync(CONFIG_FILE)) return;
   if (!fs.existsSync(CONFIG_EXAMPLE)) return;
@@ -211,7 +209,7 @@ let trayNormalImage = null;
 let trayAlertImage = null;
 let lastTrayState = null;
 
-function isAnyWaiting() {
+function shouldShowAlert() {
   try {
     const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
     const now = Date.now();
@@ -219,20 +217,12 @@ function isAnyWaiting() {
       if (!s.waitingForUser) return false;
       if (now - (s.lastEventAt || 0) >= STALE_SESSION_MS) return false;
       if (s.lastSetAt && now - s.lastSetAt >= WAIT_TIMEOUT_MS) return false;
+      if (!s.waitingSince || now - s.waitingSince < SURPRISED_DEBOUNCE_MS) return false;
       return true;
     });
   } catch {
     return false;
   }
-}
-
-function shouldShowAlert() {
-  if (isAnyWaiting()) {
-    if (trayWaitingSince === null) trayWaitingSince = Date.now();
-    return Date.now() - trayWaitingSince >= SURPRISED_DEBOUNCE_MS;
-  }
-  trayWaitingSince = null;
-  return false;
 }
 
 function updateTrayIcon() {
