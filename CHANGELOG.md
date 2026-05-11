@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Unified `config.json` location across dev mode and the packaged `.app`.** Previously `lib/paths.js` resolved `USER_DATA_DIR` to the source folder in dev mode and to `~/Library/Application Support/claude-pet` only when packaged, which meant the source `config.json` (used by `npm start` + every hook) and the `.app` `config.json` (used by the packaged pet) could drift out of sync — projects added in one place wouldn't be respected in the other. `USER_DATA_DIR` is now hard-coded to `~/Library/Application Support/claude-pet` for every mode. One file, one edit. The source `config.json` is now unused (already `.gitignore`d, safe to delete).
+
 ### Fixed
 
 - **Pet still got stuck on red even after the race-condition fix**, because the underlying cause turned out to be a *second*, separate bug: some Claude Code events (certain tool types, ESC-cancelled prompts, agent/MCP calls) leave a `permission` SET in `state.json` with no matching `tool-post` / `permission-denied` follow-up. timestamp comparison correctly says `lastSetAt > lastClearAt` → wait=true, so the pet stays red until the 10-minute stale window closes. Mitigation, added in `main.js` and `renderer/renderer.js`: a session is treated as waiting only if its `lastSetAt` is at most **60 seconds old** (new `WAIT_TIMEOUT_MS`). Real YES/NO prompts are typically answered well within that window; orphaned SETs auto-clear in ≤60 s instead of ≤10 min.

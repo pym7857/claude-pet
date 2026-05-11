@@ -107,7 +107,7 @@ The hook re-registration and `autostart:install` steps above are optional conven
 After this:
 - The pet launches immediately.
 - Every login the pet starts automatically — no terminal, no `npm start`.
-- Your config lives at `~/Library/Application Support/claude-pet/config.json` (the source `config.json` is only used in dev mode).
+- Your config lives at `~/Library/Application Support/claude-pet/config.json` (shared by both `npm start` and the `.app` — see [Single config location](#single-config-location) below).
 - To open the config quickly:
   ```bash
   open -e "$HOME/Library/Application Support/claude-pet/config.json"
@@ -192,14 +192,17 @@ Electron renderer  →  polls state.json every 500 ms
                       → switches face / triggers bounce + `!`
 ```
 
-Two important paths:
+### Single config location
 
-| Mode | `config.json` location |
-|---|---|
-| Dev (`npm start`) | inside the source folder |
-| Packaged (`.app`) | `~/Library/Application Support/claude-pet/` |
+All modes share a **single config file** at `~/Library/Application Support/claude-pet/config.json`. The `npm start` pet, the `.app` pet, and every Claude Code hook all read the same file — edit once, everywhere takes effect (within `pollIntervalMs` for `projects`, on next restart for `petPosition` / `petSize`).
 
-The `.app` ships with `config.example.json` and copies it on first launch. The same file is used by the hook handler when invoked from inside the packaged bundle — so `npm start` and the `.app` never fight over the same file.
+On first launch the file is created from `config.example.json` if missing. The `config.json` that sits inside the source folder (next to `config.example.json`) is no longer used; it is left in `.gitignore` for backward compatibility and you can delete it.
+
+**Q: Does `~/Library/Application Support/claude-pet/config.json` exist immediately after `git clone`?**
+
+**A:** No. It is **user data**, not part of the repository — `git clone` only ships `config.example.json` (the template). The user-data file is created automatically the first time the pet launches (`npm start` *or* double-clicking the `.app`): `ensureConfig()` in `main.js` copies `config.example.json` into the user-data directory, creating the directory (`~/Library/Application Support/claude-pet/`) itself if missing.
+
+> ⚠️ If a Claude Code hook fires **before** the pet has been launched even once, `loadConfig()` in `hooks/on-event.js` falls back to `{ projects: [] }` and that hook is silently ignored (no project is tracked yet, so `state.json` won't be updated). Just run the pet once after `node scripts/install-hooks.js`, and every subsequent hook will see the file.
 
 ## Project layout
 
