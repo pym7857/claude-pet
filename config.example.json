@@ -1,6 +1,6 @@
 {
   "projects": [],
-  "petPosition": "bottom-right",
+  "petPosition": "bottom-left",
   "petSize": 160,
   "pollIntervalMs": 500
 }

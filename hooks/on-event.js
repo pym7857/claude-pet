@@ -46,6 +46,35 @@ function writeState(state) {
   fs.renameSync(tmp, STATE_FILE);
 }
 
+const STATE_LOCK = STATE_FILE + '.lock';
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function withLock(fn) {
+  fs.mkdirSync(STATE_DIR, { recursive: true });
+  const deadline = Date.now() + 2000;
+  let acquired = false;
+  while (Date.now() < deadline) {
+    try {
+      fs.mkdirSync(STATE_LOCK);
+      acquired = true;
+      break;
+    } catch {
+      try {
+        const st = fs.statSync(STATE_LOCK);
+        if (Date.now() - st.mtimeMs > 5000) fs.rmdirSync(STATE_LOCK);
+      } catch {}
+      await sleep(5);
+    }
+  }
+  try {
+    return fn();
+  } finally {
+    if (acquired) {
+      try { fs.rmdirSync(STATE_LOCK); } catch {}
+    }
+  }
+}
+
 (async () => {
   const eventArg = process.argv[2] || 'unknown';
   const raw = await readStdin();
@@ -64,10 +93,6 @@ function writeState(state) {
 
   const sessionId = payload.session_id || 'default';
   const now = Date.now();
-  const state = readState();
-  state.sessions = state.sessions || {};
-
-  const prior = state.sessions[sessionId] || {};
   const SETS_WAITING = new Set(['notification', 'permission']);
   const CLEARS_WAITING = new Set([
     'prompt',
@@ -77,19 +102,30 @@ function writeState(state) {
     'stop',
     'stop-fail',
   ]);
-  let waitingForUser = prior.waitingForUser || false;
-  if (SETS_WAITING.has(eventArg)) waitingForUser = true;
-  else if (CLEARS_WAITING.has(eventArg)) waitingForUser = false;
 
-  state.sessions[sessionId] = {
-    cwd,
-    lastEvent: eventArg,
-    lastEventAt: now,
-    waitingForUser,
-  };
+  let waitingForUser = false;
+  await withLock(() => {
+    const state = readState();
+    state.sessions = state.sessions || {};
+    const prior = state.sessions[sessionId] || {};
 
-  state.lastEvent = { type: eventArg, at: now, sessionId, cwd };
-  writeState(state);
+    let lastSetAt = prior.lastSetAt || 0;
+    let lastClearAt = prior.lastClearAt || 0;
+    if (SETS_WAITING.has(eventArg)) lastSetAt = Math.max(lastSetAt, now);
+    else if (CLEARS_WAITING.has(eventArg)) lastClearAt = Math.max(lastClearAt, now);
+    waitingForUser = lastSetAt > lastClearAt;
+
+    state.sessions[sessionId] = {
+      cwd,
+      lastEvent: eventArg,
+      lastEventAt: now,
+      lastSetAt,
+      lastClearAt,
+      waitingForUser,
+    };
+    state.lastEvent = { type: eventArg, at: now, sessionId, cwd };
+    writeState(state);
+  });
 
   try {
     const logLine = `${new Date().toISOString()} | ${eventArg.padEnd(18)} | wait=${waitingForUser ? 'T' : 'F'} | ${sessionId.slice(0, 8)} | ${cwd}\n`;

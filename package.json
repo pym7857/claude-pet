@@ -24,6 +24,7 @@
   "build": {
     "appId": "com.pym7857.claude-pet",
     "productName": "claude-pet",
+    "asar": false,
     "directories": {
       "output": "dist",
       "buildResources": "build"

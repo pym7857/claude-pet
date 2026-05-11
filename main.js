@@ -54,15 +54,15 @@ function positionFor(display, size, where) {
   const { x, y, width, height } = display.workArea;
   const margin = 24;
   switch (where) {
-    case 'bottom-left':
-      return { x: x + margin, y: y + height - size - margin };
+    case 'bottom-right':
+      return { x: x + width - size - margin, y: y + height - size - margin };
     case 'top-right':
       return { x: x + width - size - margin, y: y + margin };
     case 'top-left':
       return { x: x + margin, y: y + margin };
-    case 'bottom-right':
+    case 'bottom-left':
     default:
-      return { x: x + width - size - margin, y: y + height - size - margin };
+      return { x: x + margin, y: y + height - size - margin };
   }
 }
 
@@ -70,7 +70,7 @@ function createWindow() {
   const config = loadConfig();
   const size = config.petSize || 160;
   const display = screen.getPrimaryDisplay();
-  const { x, y } = positionFor(display, size, config.petPosition || 'bottom-right');
+  const { x, y } = positionFor(display, size, config.petPosition || 'bottom-left');
 
   win = new BrowserWindow({
     width: size,
