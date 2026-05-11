@@ -13,10 +13,20 @@ Claude Code 이벤트에 반응하는 데스크탑 펫. 픽셀 아트 얼굴 두
 ## 설치
 
 ```bash
+git clone https://github.com/pym7857/claude-pet.git
+cd claude-pet
 npm install
-node scripts/gen-assets.js          # 픽셀 아트 PNG 생성 (이미 만들어둠)
-node scripts/install-hooks.js       # ~/.claude/settings.json 에 훅 등록
-npm start                           # 펫 띄우기
+
+# 픽셀 아트 PNG 생성 (renderer/assets/normal.png, surprised.png는 이미 만들어져있음. 다시 만들고 싶을 때만)
+# node scripts/gen-assets.js
+
+# Claude Code 훅 등록
+node scripts/install-hooks.js
+
+# 펫 띄우기 (첫 실행 시 config.example.json → config.json 자동 복사)
+npm start
+
+# config.json을 열어서 추적할 프로젝트 절대경로를 projects 배열에 추가
 ```
 
 > VSCode 통합 터미널에서 띄울 때는 `ELECTRON_RUN_AS_NODE`가 상속되어 GUI 모드가 안 뜬다.
@@ -31,6 +41,8 @@ node scripts/install-hooks.js --uninstall
 
 ## 설정 (`config.json`)
 
+`config.json`은 사용자별 파일이라 git에서 제외됨. `config.example.json` 템플릿을 첫 실행 시 자동 복사하니까 그걸 편집하면 됨.
+
 ```json
 {
   "projects": ["/Users/me/Desktop/some-project"],
@@ -40,7 +52,7 @@ node scripts/install-hooks.js --uninstall
 }
 ```
 
-- `projects`: 추적할 프로젝트 절대 경로 화이트리스트. 하위 디렉토리도 매칭됨.
+- `projects`: 추적할 프로젝트 절대 경로 화이트리스트. 하위 디렉토리도 매칭됨. 비어있으면 아무것도 추적 안 함.
 - `petPosition`: `bottom-right` | `bottom-left` | `top-right` | `top-left`
 
 ## 표정이 바뀌는 조건

@@ -1,9 +1,0 @@
-{
-  "projects": [
-    "/Users/ympark4/Desktop/claude-pet",
-    "/Users/ympark4/Desktop/test-ai-agent/"
-  ],
-  "petPosition": "bottom-left",
-  "petSize": 160,
-  "pollIntervalMs": 500
-}
