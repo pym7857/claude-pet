@@ -68,7 +68,7 @@ function writeState(state) {
   state.sessions = state.sessions || {};
 
   const prior = state.sessions[sessionId] || {};
-  const SETS_WAITING = new Set(['notification']);
+  const SETS_WAITING = new Set(['notification', 'permission']);
   const CLEARS_WAITING = new Set([
     'prompt',
     'tool-post',
