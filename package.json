@@ -1,0 +1,16 @@
+{
+  "name": "claude-pet",
+  "version": "0.1.0",
+  "description": "Desktop pet that reacts to Claude Code events with pixel art faces",
+  "main": "main.js",
+  "scripts": {
+    "start": "ELECTRON_RUN_AS_NODE= electron .",
+    "dev": "ELECTRON_RUN_AS_NODE= CLAUDE_PET_DEVTOOLS=1 electron .",
+    "gen-assets": "node scripts/gen-assets.js",
+    "install-hooks": "node scripts/install-hooks.js",
+    "uninstall-hooks": "node scripts/install-hooks.js --uninstall"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0"
+  }
+}
