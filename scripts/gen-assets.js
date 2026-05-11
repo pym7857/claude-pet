@@ -5,8 +5,10 @@ const zlib = require('zlib');
 
 const OUT_DIR = path.resolve(__dirname, '..', 'renderer', 'assets');
 const BUILD_DIR = path.resolve(__dirname, '..', 'build');
+const DOCS_DIR = path.resolve(__dirname, '..', 'docs');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 fs.mkdirSync(BUILD_DIR, { recursive: true });
+fs.mkdirSync(DOCS_DIR, { recursive: true });
 
 const SIZE = 32;
 
@@ -172,12 +174,16 @@ function write(name, art) {
 }
 
 const normalPixels = write('normal.png', NORMAL);
-write('surprised.png', SURPRISED);
+const surprisedPixels = write('surprised.png', SURPRISED);
 
-const ICON_SIZE = 1024;
-const factor = ICON_SIZE / SIZE;
-const iconPixels = scaleUp(normalPixels, SIZE, factor);
-const iconPng = encodePng(iconPixels, ICON_SIZE, ICON_SIZE);
-const iconPath = path.join(BUILD_DIR, 'icon.png');
-fs.writeFileSync(iconPath, iconPng);
-console.log('wrote', iconPath, iconPng.length, 'bytes');
+function writeScaled(pixels, outPath, targetSize) {
+  const factor = targetSize / SIZE;
+  const scaled = scaleUp(pixels, SIZE, factor);
+  const png = encodePng(scaled, targetSize, targetSize);
+  fs.writeFileSync(outPath, png);
+  console.log('wrote', outPath, png.length, 'bytes');
+}
+
+writeScaled(normalPixels, path.join(BUILD_DIR, 'icon.png'), 1024);
+writeScaled(normalPixels, path.join(DOCS_DIR, 'face-normal.png'), 256);
+writeScaled(surprisedPixels, path.join(DOCS_DIR, 'face-surprised.png'), 256);
