@@ -6,6 +6,7 @@ const { CONFIG_FILE, CONFIG_EXAMPLE, USER_DATA_DIR, STATE_FILE } = require('./li
 const TRAY_SIZE = 22;
 const TRAY_POLL_MS = 1000;
 const STALE_SESSION_MS = 10 * 60 * 1000;
+const WAIT_TIMEOUT_MS = 60 * 1000;
 
 function ensureConfig() {
   if (fs.existsSync(CONFIG_FILE)) return;
@@ -123,9 +124,12 @@ function isAnyWaiting() {
   try {
     const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
     const now = Date.now();
-    return Object.values(state.sessions || {}).some(
-      (s) => s.waitingForUser && now - (s.lastEventAt || 0) < STALE_SESSION_MS
-    );
+    return Object.values(state.sessions || {}).some((s) => {
+      if (!s.waitingForUser) return false;
+      if (now - (s.lastEventAt || 0) >= STALE_SESSION_MS) return false;
+      if (s.lastSetAt && now - s.lastSetAt >= WAIT_TIMEOUT_MS) return false;
+      return true;
+    });
   } catch {
     return false;
   }

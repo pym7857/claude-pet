@@ -63,13 +63,17 @@ function setMood(mood) {
 }
 
 const STALE_SESSION_MS = 10 * 60 * 1000;
+const WAIT_TIMEOUT_MS = 60 * 1000;
 
 function computeMood(state) {
   const now = Date.now();
   const sessions = Object.values(state.sessions || {});
-  const anyWaiting = sessions.some(
-    (s) => s.waitingForUser && now - (s.lastEventAt || 0) < STALE_SESSION_MS
-  );
+  const anyWaiting = sessions.some((s) => {
+    if (!s.waitingForUser) return false;
+    if (now - (s.lastEventAt || 0) >= STALE_SESSION_MS) return false;
+    if (s.lastSetAt && now - s.lastSetAt >= WAIT_TIMEOUT_MS) return false;
+    return true;
+  });
   return anyWaiting ? 'surprised' : 'normal';
 }
 
