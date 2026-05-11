@@ -1,7 +1,8 @@
-const { app, BrowserWindow, screen, Menu, Tray, nativeImage, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, screen, Menu, Tray, nativeImage, ipcMain, dialog, clipboard, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { CONFIG_FILE, CONFIG_EXAMPLE, USER_DATA_DIR, STATE_FILE } = require('./lib/paths');
+const { CONFIG_FILE, CONFIG_EXAMPLE, USER_DATA_DIR, STATE_FILE, STATE_DIR } = require('./lib/paths');
+const pkg = require('./package.json');
 
 const TRAY_SIZE = 22;
 const TRAY_POLL_MS = 1000;
@@ -127,6 +128,63 @@ ipcMain.handle('config:pick-folder', async () => {
   return r.filePaths[0];
 });
 
+function buildDiagnosticSnapshot() {
+  const lines = [];
+  lines.push('# claude-pet diagnostic snapshot');
+  lines.push('Generated: ' + new Date().toISOString());
+  lines.push('Pet version: ' + (pkg.version || 'unknown'));
+  lines.push('Platform: ' + process.platform + ' ' + process.arch + ', Electron ' + process.versions.electron);
+  lines.push('');
+  lines.push('## state.json');
+  lines.push('```json');
+  try {
+    lines.push(fs.readFileSync(STATE_FILE, 'utf8').trimEnd());
+  } catch (e) {
+    lines.push('(error reading state.json: ' + (e && e.message) + ')');
+  }
+  lines.push('```');
+  lines.push('');
+  lines.push('## config.json');
+  lines.push('```json');
+  try {
+    lines.push(fs.readFileSync(CONFIG_FILE, 'utf8').trimEnd());
+  } catch (e) {
+    lines.push('(error reading config.json: ' + (e && e.message) + ')');
+  }
+  lines.push('```');
+  lines.push('');
+  lines.push('## events.log (last 50 lines)');
+  lines.push('```');
+  try {
+    const log = fs.readFileSync(path.join(STATE_DIR, 'events.log'), 'utf8');
+    const arr = log.trim().split('\n');
+    lines.push(arr.slice(-50).join('\n'));
+  } catch (e) {
+    lines.push('(error reading events.log: ' + (e && e.message) + ')');
+  }
+  lines.push('```');
+  return lines.join('\n') + '\n';
+}
+
+function copyDiagnosticSnapshot() {
+  try {
+    clipboard.writeText(buildDiagnosticSnapshot());
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'claude-pet',
+        body: 'Diagnostic snapshot copied to clipboard.',
+      }).show();
+    }
+  } catch (e) {
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'claude-pet',
+        body: 'Failed to copy snapshot: ' + (e && e.message),
+      }).show();
+    }
+  }
+}
+
 ipcMain.handle('config:save-projects', (_, projects) => {
   try {
     const sanitized = sanitizeProjects(projects);
@@ -243,6 +301,7 @@ function createTray() {
       { label: 'Show', click: () => win && win.show() },
       { label: 'Hide', click: () => win && win.hide() },
       { label: 'Edit projects…', click: openEditor },
+      { label: 'Copy diagnostic snapshot', click: copyDiagnosticSnapshot },
       { type: 'separator' },
       { label: 'Quit', click: () => app.quit() },
     ])

@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **"Copy diagnostic snapshot" menu item in the macOS tray menu.** One click collects `state.json`, `config.json`, and the last 50 lines of `events.log` into a single markdown blob and copies it to the clipboard. Designed for one-click bug reports when the pet behaves unexpectedly — no need for the user to manually run terminal commands. A macOS Notification confirms the copy.
 - **Right-click the pet (or use the tray "Edit projects…" menu) to open a built-in projects editor.** The editor is a small BrowserWindow that lists the currently tracked folders, lets you pick new ones via the native macOS folder dialog, remove existing entries with one click, and saves back to `~/Library/Application Support/claude-pet/config.json`. Safety patterns applied to the save path: atomic write (`.tmp` + `rename`), automatic `.bak` snapshot before each save, schema preservation (only `projects` is touched; `petPosition` / `petSize` / `pollIntervalMs` are kept), post-write reload verification, and validation that drops non-string / empty / duplicate entries.
 
 ### Changed
