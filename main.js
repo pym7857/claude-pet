@@ -9,6 +9,10 @@ const TRAY_POLL_MS = 250;
 const STALE_SESSION_MS = 10 * 60 * 1000;
 const WAIT_TIMEOUT_MS = 60 * 1000;
 const SURPRISED_DEBOUNCE_MS = 1500;
+const NOTIFY_THROTTLE_MS = 30 * 1000;
+
+const notifiedSetAt = new Map();
+const lastNotifiedAt = new Map();
 
 function ensureConfig() {
   if (fs.existsSync(CONFIG_FILE)) return;
@@ -267,28 +271,55 @@ let trayNormalImage = null;
 let trayAlertImage = null;
 let lastTrayState = null;
 
-function shouldShowAlert() {
-  try {
-    const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-    const now = Date.now();
-    return Object.values(state.sessions || {}).some((s) => {
-      if (!s.waitingForUser) return false;
-      if (now - (s.lastEventAt || 0) >= STALE_SESSION_MS) return false;
-      if (s.lastSetAt && now - s.lastSetAt >= WAIT_TIMEOUT_MS) return false;
-      if (!s.waitingSince || now - s.waitingSince < SURPRISED_DEBOUNCE_MS) return false;
-      return true;
-    });
-  } catch {
-    return false;
-  }
+function isSessionShowable(s, now) {
+  if (!s.waitingForUser) return false;
+  if (now - (s.lastEventAt || 0) >= STALE_SESSION_MS) return false;
+  if (s.lastSetAt && now - s.lastSetAt >= WAIT_TIMEOUT_MS) return false;
+  if (!s.waitingSince || now - s.waitingSince < SURPRISED_DEBOUNCE_MS) return false;
+  return true;
 }
 
-function updateTrayIcon() {
+function sendWaitingNotification(session) {
+  if (!Notification.isSupported()) return;
+  const parts = (session.cwd || '').split('/').filter(Boolean);
+  const label = parts.slice(-2).join('/') || session.cwd || '(unknown)';
+  try {
+    new Notification({
+      title: 'claude-pet — waiting for your YES/NO',
+      body: label,
+    }).show();
+  } catch {}
+}
+
+function tick() {
   if (!tray || (tray.isDestroyed && tray.isDestroyed())) return;
-  const next = shouldShowAlert() ? 'alert' : 'normal';
-  if (next === lastTrayState) return;
-  lastTrayState = next;
-  tray.setImage(next === 'alert' ? trayAlertImage : trayNormalImage);
+  let state;
+  try { state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); }
+  catch { state = { sessions: {} }; }
+  const sessions = state.sessions || {};
+  const now = Date.now();
+  let anyShow = false;
+  for (const [id, s] of Object.entries(sessions)) {
+    const showable = isSessionShowable(s, now);
+    if (!showable) {
+      if (!s.waitingForUser) {
+        notifiedSetAt.delete(id);
+        lastNotifiedAt.delete(id);
+      }
+      continue;
+    }
+    anyShow = true;
+    if (notifiedSetAt.get(id) !== s.lastSetAt && now - (lastNotifiedAt.get(id) || 0) >= NOTIFY_THROTTLE_MS) {
+      notifiedSetAt.set(id, s.lastSetAt);
+      lastNotifiedAt.set(id, now);
+      sendWaitingNotification(s);
+    }
+  }
+  const next = anyShow ? 'alert' : 'normal';
+  if (next !== lastTrayState) {
+    lastTrayState = next;
+    tray.setImage(next === 'alert' ? trayAlertImage : trayNormalImage);
+  }
 }
 
 function createTray() {
@@ -307,7 +338,7 @@ function createTray() {
     ])
   );
   lastTrayState = 'normal';
-  setInterval(updateTrayIcon, TRAY_POLL_MS);
+  setInterval(tick, TRAY_POLL_MS);
 }
 
 app.whenReady().then(() => {
