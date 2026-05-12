@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-12
+
 ### Fixed
 
 - **Pet appeared to stay red even though all permission prompts had been answered.** Root cause was visual, not data — `PreToolUse` fires on every tool use including auto-allowed ones, producing very short `permission → tool-post` flicker pairs (tens of milliseconds). When Claude ran many auto-allowed tools back-to-back the flickers blurred into "always red" to the eye.
