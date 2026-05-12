@@ -137,3 +137,16 @@ html, body {
   opacity: 0.5;
   font-style: italic;
 }
+
+#project-list li.waiting {
+  color: #ff6e6e;
+  font-weight: 700;
+  padding-left: 8px;
+  border-left: 3px solid #e23636;
+  background: rgba(226, 54, 54, 0.12);
+  border-radius: 0 3px 3px 0;
+}
+
+#project-list li.waiting::before {
+  content: '⚠️  ';
+}

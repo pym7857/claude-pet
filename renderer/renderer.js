@@ -25,10 +25,15 @@ document.addEventListener('contextmenu', (e) => {
 });
 
 let lastProjectsHash = null;
-function renderProjectsIfChanged(projects) {
+function projectMatchesAnyWait(project, waitingCwds) {
+  const root = project.replace(/\/$/, '');
+  return waitingCwds.some((cwd) => cwd === root || (cwd || '').startsWith(root + '/'));
+}
+
+function renderProjectsIfChanged(projects, waitingCwds) {
   const list = Array.isArray(projects) ? projects : [];
-  const hash = list.join('\n');
-  console.log('[claude-pet] renderProjects called with', list.length, 'projects:', list);
+  const waits = Array.isArray(waitingCwds) ? waitingCwds : [];
+  const hash = JSON.stringify([list, waits]);
   if (hash === lastProjectsHash) return;
   lastProjectsHash = hash;
   projectListEl.innerHTML = '';
@@ -44,9 +49,9 @@ function renderProjectsIfChanged(projects) {
     const parts = p.replace(/\/$/, '').split('/').filter(Boolean);
     li.textContent = parts.slice(-2).join('/') || p;
     li.title = p;
+    if (projectMatchesAnyWait(p, waits)) li.classList.add('waiting');
     projectListEl.appendChild(li);
   }
-  console.log('[claude-pet] rendered', projectListEl.children.length, 'items');
 }
 
 normalEl.addEventListener('error', (e) => console.error('[claude-pet] normal load failed', e));
@@ -72,24 +77,31 @@ const STALE_SESSION_MS = 10 * 60 * 1000;
 const WAIT_TIMEOUT_MS = 60 * 1000;
 const SURPRISED_DEBOUNCE_MS = 1500;
 
-function computeMood(state) {
+function isSessionWaiting(s, now) {
+  if (!s.waitingForUser) return false;
+  if (now - (s.lastEventAt || 0) >= STALE_SESSION_MS) return false;
+  if (s.lastSetAt && now - s.lastSetAt >= WAIT_TIMEOUT_MS) return false;
+  if (!s.waitingSince || now - s.waitingSince < SURPRISED_DEBOUNCE_MS) return false;
+  return true;
+}
+
+function getWaitingCwds(state) {
   const now = Date.now();
-  const sessions = Object.values(state.sessions || {});
-  const anyWaiting = sessions.some((s) => {
-    if (!s.waitingForUser) return false;
-    if (now - (s.lastEventAt || 0) >= STALE_SESSION_MS) return false;
-    if (s.lastSetAt && now - s.lastSetAt >= WAIT_TIMEOUT_MS) return false;
-    if (!s.waitingSince || now - s.waitingSince < SURPRISED_DEBOUNCE_MS) return false;
-    return true;
-  });
-  return anyWaiting ? 'surprised' : 'normal';
+  return Object.values(state.sessions || {})
+    .filter((s) => isSessionWaiting(s, now))
+    .map((s) => s.cwd);
+}
+
+function computeMood(state) {
+  return getWaitingCwds(state).length > 0 ? 'surprised' : 'normal';
 }
 
 function tick() {
   const config = readConfig();
   const state = readState();
-  setMood(computeMood(state));
-  renderProjectsIfChanged(config.projects);
+  const waits = getWaitingCwds(state);
+  setMood(waits.length > 0 ? 'surprised' : 'normal');
+  renderProjectsIfChanged(config.projects, waits);
 }
 
 setMood('normal');
