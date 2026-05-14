@@ -74,8 +74,8 @@ function setMood(mood) {
 }
 
 const STALE_SESSION_MS = 10 * 60 * 1000;
-const WAIT_TIMEOUT_MS = 60 * 1000;
-const SURPRISED_DEBOUNCE_MS = 1500;
+const WAIT_TIMEOUT_MS = 10 * 1000;
+const SURPRISED_DEBOUNCE_MS = 3000;
 
 function isSessionWaiting(s, now) {
   if (!s.waitingForUser) return false;

@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-13
+
+### Changed
+
+- **`WAIT_TIMEOUT_MS` reduced from 60 s → 10 s.** Root cause of "I clicked YES but the pet is still red": Claude Code's hook system fires `PreToolUse` (which we map to `permission`) before *every* tool call but only fires `PostToolUse` (`tool-post`) once the tool actually finishes. There's no separate event for "user has answered YES, tool is now executing." So for a tool that takes 30 s to run, the pet would stay red for the entire 30 s even though the user answered within 1–2 s and had no further attention to give. The `Notification` hook would have let us scope wait state more precisely, but Claude Code does not emit it in this user's environment (verified with `grep notification events.log` → 0 matches). The pragmatic fix is to cap how long a single permission can keep the pet red: 10 s is comfortably longer than typical answer time (1–5 s) and much shorter than a long-running tool. Slow answers (>10 s) lose the visual nudge but the actual prompt is still visible in the IDE window.
+- **`SURPRISED_DEBOUNCE_MS` raised from 1.5 s → 3 s.** Diagnostics showed lots of short `permission → tool-post` pairs in the 1.5–3 s range — too long for the previous debounce to filter but almost certainly auto-allowed tools (a `Read`/`Bash` finishing quickly), not real prompts. Bumping the threshold to 3 s eliminates those false-positive red flashes without losing real prompts (which typically have a much longer gap between `permission` and `tool-post`).
+
+### Fixed
+
+- **`package.json` version was never bumped from `0.1.0` when v0.2.0 was tagged.** The `.app` therefore reported `Pet version: 0.1.0` in diagnostic snapshots even though the code was 0.2.0, making "is the user running a stale build?" much harder to answer from a snapshot. Bumped now to `0.3.0` to match the release.
+
 ## [0.2.0] - 2026-05-12
 
 ### Fixed

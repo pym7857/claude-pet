@@ -7,8 +7,8 @@ const pkg = require('./package.json');
 const TRAY_SIZE = 22;
 const TRAY_POLL_MS = 250;
 const STALE_SESSION_MS = 10 * 60 * 1000;
-const WAIT_TIMEOUT_MS = 60 * 1000;
-const SURPRISED_DEBOUNCE_MS = 1500;
+const WAIT_TIMEOUT_MS = 10 * 1000;
+const SURPRISED_DEBOUNCE_MS = 3000;
 const NOTIFY_THROTTLE_MS = 30 * 1000;
 
 const notifiedSetAt = new Map();

@@ -45,16 +45,16 @@ The surprised animation is purely CSS — a 0.55s `translateY` keyframe loop on 
 
 ### Auto-clear policy
 
-> ⚠️ **The pet automatically returns to normal after ~60 seconds even if no "back to normal" event arrives.**
+> ⚠️ **The pet automatically returns to normal after ~10 seconds even if no "back to normal" event arrives.**
 >
 > Why this matters: Claude Code sometimes leaves a "waiting" SET in the state file without ever firing a matching `PostToolUse` / `PermissionDenied` (certain tool types, ESC-cancelled prompts, agent / MCP calls). Without a fallback the pet would stay red until the 10-minute stale window closed.
 >
 > Three safety nets in `main.js`, `renderer/renderer.js`, and `hooks/on-event.js`:
-> - `WAIT_TIMEOUT_MS = 60_000` — a session is only treated as waiting if its last "set" timestamp is at most 60 seconds old.
+> - `WAIT_TIMEOUT_MS = 10_000` — a session is only treated as waiting if its last "set" timestamp is at most 10 seconds old. Claude Code's hooks can't distinguish "waiting for YES/NO" from "tool running after YES", so the pet caps how long it stays red per permission to avoid lighting up for the entire tool-execution window.
 > - `STALE_SESSION_MS = 10 * 60 * 1000` — sessions whose last event of any kind is over 10 minutes old are ignored entirely.
-> - `SURPRISED_DEBOUNCE_MS = 1500` — the pet/tray only switches to surprised when `waitingSince` (a hook-recorded timestamp of the most recent `false → true` transition) is at least 1.5 s old. Bursts of auto-allowed tools that flicker `permission → tool-post` in tens of milliseconds keep resetting `waitingSince` and never register visually. Real YES/NO prompts (wait ≫ 1.5 s) still surface.
+> - `SURPRISED_DEBOUNCE_MS = 3000` — the pet/tray only switches to surprised when `waitingSince` (a hook-recorded timestamp of the most recent `false → true` transition) is at least 3 s old. Auto-allowed tools that complete within a few seconds keep resetting `waitingSince` and never register visually. Real YES/NO prompts (wait ≫ 3 s) still surface.
 >
-> **Real YES/NO prompts are answered well within 60 s, so normal flow looks unchanged.** Orphaned signals self-clear in ≤60 s instead of ≤10 min.
+> **Real YES/NO prompts are answered well within 10 s, and even slower responses still surface visually as the actual prompt in the IDE window.** Orphaned signals self-clear in ≤10 s instead of ≤10 min.
 
 ## Two ways to run it
 
